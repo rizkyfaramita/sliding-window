@@ -111,24 +111,11 @@ int main(int argc, char** argv) {
             if (checksum(seg.data) != seg.checksum) {
                 printf("Checksum error: calculated %02x, expected %02x\n\r", checksum(seg.data) & 0xff, seg.checksum & 0xff);
             } else {
-                
+
             }
 
             fflush(stdout);
         }
-
-        //try to receive some data, this is a blocking call
-        // if ((recv_len = recvfrom(sockfd, buf, 1, 0, (struct sockaddr*) &si_other, &slen)) == -1)
-        //     die("Some error occured when recvfrom() is called");
-        // printf("Starting data : "); hex(buf, 1); printf("\n");
-        // if (strcmp(buf, "\x01") == 0) {
-        //     if ((recv_len = recvfrom(sockfd, buf + 1, 8, 0, (struct sockaddr*) &si_other, &slen)) == -1)
-        //         die("Some error occured when recvfrom() is called");
-        //     printf("Data: ");hex(buf, 9);printf("\n");
-        //     segment msg; to_segment(buf, &msg);
-
-        //     // printf("%d %d %d %d %d %d\n", msg.soh, msg.seq, msg.stx, msg.data, msg.etx, msg.checksum);
-        // }
     }
 
     close(sockfd);
