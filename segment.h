@@ -1,3 +1,6 @@
+#ifndef SEGMENT_H
+#define SEGMENT_H
+
 typedef struct {
     char soh;
     int seq;
@@ -14,10 +17,12 @@ typedef struct {
     char checksum;
 } ack_segment;
 
-int to_raw(segment seg, char* buffer);
+int segment_to_raw(segment seg, char* buffer);
 
-int to_raw(ack_segment seg, char* buffer);
+int ack_segment_to_raw(ack_segment seg, char* buffer);
 
 void to_segment(char* raw, segment* seg);
 
 void print_segment(segment seg);
+
+#endif

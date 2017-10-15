@@ -15,8 +15,15 @@ int to_int(char* str) {
     return n;
 }
 
-char checksum(char x) {
+char checksum_chr(char x) {
     return x;
+}
+
+char checksum_str(char* x, int len) {
+    int n = 0;
+    while (len--)
+        n += checksum_chr(*(x++));
+    return (char) n;
 }
 
 void die(char *s) {

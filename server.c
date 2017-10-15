@@ -27,6 +27,20 @@ void init_socket(int port, int *sockfd) {
     printf("Socket bind on port %d\n", port);
     fflush(stdout);
 }
+
+void send_ack_segment(int sockfd, char ack, int seq_num, int window_size) {
+    ack_segment seg;
+    char raw[16];
+
+    seg.ack = ack ? '\06' : '\21';
+    seg.next_seq = seq_num + 1;
+    seg.window_size = window_size;
+    ack_segment_to_raw(seg, raw);
+    seg.checksum = checksum_str(raw, 6);
+
+    ack_segment_to_raw(seg, raw);
+    send(sockfd, raw, 7, 0);
+}
  
 int main(int argc, char** argv) {
     if (argc < 5)
@@ -58,10 +72,12 @@ int main(int argc, char** argv) {
             fflush(stdout);
 
             // test checksum
-            if (checksum(seg.data) != seg.checksum) {
-                printf("Checksum error: calculated %02x, expected %02x\n\r", checksum(seg.data) & 0xff, seg.checksum & 0xff);
+            if (checksum_chr(seg.data) != seg.checksum) {
+                printf("Checksum error: calculated %02x, expected %02x\n\r",
+                    checksum_chr(seg.data) & 0xff, seg.checksum & 0xff);
+                send_ack_segment(sockfd, 0, seg.seq + 1, window_size);
             } else {
-                
+
             }
 
             fflush(stdout);

@@ -2,7 +2,7 @@
 
 #include "segment.h"
 
-int to_raw(segment seg, char* buffer) {
+int segment_to_raw(segment seg, char* buffer) {
     buffer[0] = seg.soh;
     char* x = (char*) &seg.seq;
     buffer[1] = *x;
@@ -16,7 +16,7 @@ int to_raw(segment seg, char* buffer) {
     return 9;
 }
 
-int to_raw(ack_segment seg, char* buffer) {
+int ack_segment_to_raw(ack_segment seg, char* buffer) {
     buffer[0] = seg.ack;
     char* x = (char*) &seg.next_seq;
     buffer[1] = *x;
