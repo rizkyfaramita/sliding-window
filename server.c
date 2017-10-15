@@ -7,12 +7,16 @@
 #include "segment.h"
 #include "util.h"
 
-void init_socket(int port, int *sockfd) {
-    //create a UDP socket
+void init_socket(int port, int buffer_size, int *sockfd) {
+    // create a UDP socket
     if ((*sockfd=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
         die("Cannot creating socket instance");
     printf("Socket descriptor created\n");
     fflush(stdout);
+
+    // configure buffer size
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF,  &buffer_size, sizeof(buffer_size));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,  &buffer_size, sizeof(buffer_size));
 
     struct sockaddr_in si_me;
     memset(&si_me, 0, sizeof(si_me));
@@ -52,7 +56,7 @@ int main(int argc, char** argv) {
     int buffer_size = to_int(argv[3]);
     int port = to_int(argv[4]);
 
-    init_socket(port, &sockfd);
+    init_socket(port, buffer_size, &sockfd);
     printf("Finish initializing socket\n");
     fflush(stdout);
 
