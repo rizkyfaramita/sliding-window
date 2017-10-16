@@ -3,6 +3,7 @@
 #include <stdlib.h> 
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 
 #include "segment.h"
 #include "util.h"
@@ -15,8 +16,8 @@ void init_socket(int port, int *buffer_size, int *sockfd) {
     fflush(stdout);
 
     // configure buffer size
-    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF,  &buffer_size, sizeof(buffer_size));
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,  &buffer_size, sizeof(buffer_size));
+    setsockopt(*sockfd, SOL_SOCKET, SO_SNDBUF, buffer_size, sizeof(*buffer_size));
+    setsockopt(*sockfd, SOL_SOCKET, SO_RCVBUF, buffer_size, sizeof(*buffer_size));
 
     struct sockaddr_in si_me;
     memset(&si_me, 0, sizeof(si_me));
@@ -50,7 +51,7 @@ int main(int argc, char** argv) {
     if (argc < 5)
         die("Usage : ./recvfile <filename> <windowsize> <buffersize> <port>");
 
-    int sockfd;
+    int sockfd, filed;
     char* filename = argv[1];
     int window_size = to_int(argv[2]);
     int buffer_size = to_int(argv[3]);
@@ -59,10 +60,15 @@ int main(int argc, char** argv) {
     init_socket(port, &buffer_size, &sockfd);
     printf("Finish initializing socket\n");
     fflush(stdout);
+
+    if ((filed = open(filename, O_WRONLY)) < 0)
+        die("Cannot open file");
     
     int last_acked = -1;
     char* acked_status = (char*) malloc(window_size * sizeof(char));
+    char* acked_message = (char*) malloc(window_size * sizeof(char));
     memset(acked_status, 0, window_size * sizeof(char));
+    memset(acked_message, 0, window_size * sizeof(char));
     while(1) {
         int len;
         char buff[256];
@@ -79,7 +85,7 @@ int main(int argc, char** argv) {
             fflush(stdout);
 
             // test checksum
-            int window_index = seg.next_seq - last_acked + 1;
+            int window_index = seg.seq - last_acked + 1;
             if (checksum_chr(seg.data) != seg.checksum) {
                 printf("Checksum error: calculated %02x, expected %02x\n\r",
                     checksum_chr(seg.data) & 0xff, seg.checksum & 0xff);
@@ -87,13 +93,21 @@ int main(int argc, char** argv) {
             } else if (window_index > 0 && window_index < window_size) {
                 acked_status[window_index] = 1;
 
-                int i = 0;
-                for (; i < window_size; i++)
-                    if (!acked_status[i])
+                int next_ack = 0;
+                for (; next_ack < window_size; next_ack++)
+                    if (!acked_status[next_ack])
                         break;
-                if (i > 0) {
-                    send_ack_segment(sockfd, 1, last_acked + 1 + i, window_size);
-                    // slide windows
+                if (next_ack > 0) {
+                    write(filed, acked_message, next_ack);
+                    send_ack_segment(sockfd, 1, last_acked + 1 + next_ack, window_size);
+
+                    // slide windows with next_ack
+                    int i;
+                    for (i = 0; i < window_size; i++) {
+                        acked_message[i] = i + next_ack < window_size ? acked_message[i + next_ack] : 0;
+                        acked_status[i] = i + next_ack < window_size ? acked_message[i + next_ack] : 0;
+                    }
+                    last_acked += next_ack;
                 }
             }
 
