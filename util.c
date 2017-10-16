@@ -27,7 +27,14 @@ char checksum_str(char* x, int len) {
 }
 
 void shl_buffer(char* buffer, int len, int num) {
-    for (int i = 0; i < len; i++)
+    int i;
+    for (i = 0; i < len; i++)
+        buffer[i] = i + num < len ? buffer[i+num] : 0;
+}
+
+void shl_bufferl(int* buffer, int len, int num) {
+    int i;
+    for (i = 0; i < len; i++)
         buffer[i] = i + num < len ? buffer[i+num] : 0;
 }
 

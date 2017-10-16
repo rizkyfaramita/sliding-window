@@ -30,18 +30,28 @@ int ack_segment_to_raw(ack_segment seg, char* buffer) {
 
 void to_segment(char* raw, segment* seg) {
     seg->soh = *raw;
-    seg->seq = ((int) *(raw+1))<<24 | ((int) *(raw+2))<<16 | ((int) *(raw+3))<<16 | ((int) *(raw+4));
+    seg->seq = ((int) *(raw+1)) | ((int) *(raw+2))<<8 | ((int) *(raw+3))<<16 | ((int) *(raw+4))<<24;
     seg->stx = *(raw + 5);
     seg->data = *(raw + 6);
     seg->etx = *(raw + 7);
     seg->checksum = *(raw + 8);
 }
 
+void to_ack_segment(char* raw, ack_segment* seg) {
+    seg->ack = *raw;
+    seg->next_seq = ((int) *(raw+1)) | ((int) *(raw+2))<<8 | ((int) *(raw+3))<<16 | ((int) *(raw+4))<<24;
+    seg->window_size = *(raw + 5);
+    seg->checksum = *(raw + 6);
+}
+
 void print_segment(segment seg) {
     printf("  SOH      : 0x%02x\n", seg.soh);
     printf("  segnum   : 0x%02x (%d in decimal)\n", seg.seq, seg.seq);
     printf("  STX      : 0x%02x\n", seg.stx);
-    printf("  data     : 0x%02x\n", seg.data & 0xff);
+    printf("  data     : 0x%02x", seg.data & 0xff);
+    if (seg.data >= 0x20 && seg.data <= 0x7e)
+        printf(" (%c in character)", seg.data);
+    printf("\n");
     printf("  ETX      : 0x%02x\n", seg.etx);
     printf("  checksum : 0x%02x\n", seg.checksum & 0xff);
 }
