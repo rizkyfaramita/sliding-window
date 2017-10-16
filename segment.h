@@ -25,4 +25,6 @@ void to_segment(char* raw, segment* seg);
 
 void print_segment(segment seg);
 
+void print_ack_segment(ack_segment seg);
+
 #endif

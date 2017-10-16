@@ -45,3 +45,10 @@ void print_segment(segment seg) {
     printf("  ETX      : 0x%02x\n", seg.etx);
     printf("  checksum : 0x%02x\n", seg.checksum & 0xff);
 }
+
+void print_ack_segment(ack_segment seg) {
+    printf("  SOH      : %s\n", seg.ack == '\06' ? "ACK" : "NAK");
+    printf("  next seq : 0x%02x (%d in decimal)\n", seg.next_seq, seg.next_seq);
+    printf("  Adv.wind : 0x%02x (%d in decimal)\n", seg.window_size, seg.window_size);
+    printf("  checksum : 0x%02x\n", seg.checksum & 0xff);
+}
