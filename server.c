@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
 
             // test checksum
             int window_index = seg.seq - last_acked + 1;
-            if (checksum_chr(seg.data) != seg.checksum) {
+            if (checksum_str(buff, 8) != seg.checksum) {
                 printf("Checksum error: calculated %02x, expected %02x\n\r",
                     checksum_chr(seg.data) & 0xff, seg.checksum & 0xff);
                 send_ack_segment(sockfd, 0, seg.seq + 1, window_size);
