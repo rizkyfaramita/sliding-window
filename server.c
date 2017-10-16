@@ -12,7 +12,7 @@ void init_socket(int port, int *buffer_size, int *sockfd) {
     // create a UDP socket
     if ((*sockfd=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
         die("Cannot creating socket instance");
-    printf("%d socket descriptor created\n", time());
+    printf("%d socket descriptor created\n", time(0));
     fflush(stdout);
 
     // configure buffer size
@@ -25,15 +25,15 @@ void init_socket(int port, int *buffer_size, int *sockfd) {
     si_me.sin_port = htons(port); 
     si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    printf("%d binding socket to port %d\n", time(), port);
+    printf("%d binding socket to port %d\n", time(0), port);
     fflush(stdout);
     if(bind(*sockfd , (struct sockaddr*) &si_me, sizeof(si_me)) == -1)
         die("Cannot bind socket to specific port");
-    printf("%d socket bind success on port %d\n", time(), port);
+    printf("%d socket bind success on port %d\n", time(0), port);
     fflush(stdout);
 }
 
-void send_ack_segment(int sockfd, char ack, int seq_num, int window_size) {
+void send_ack_segment(int sockfd, struct sockaddr* address, char ack, int seq_num, int window_size) {
     ack_segment seg;
     char raw[16];
 
@@ -43,8 +43,12 @@ void send_ack_segment(int sockfd, char ack, int seq_num, int window_size) {
     ack_segment_to_raw(seg, raw);
     seg.checksum = checksum_str(raw, 6);
 
+    printf("%d sending ack segment %d\n", time(0), seq_num);
+    print_ack_segment(seg);
+    fflush(stdout);
+
     ack_segment_to_raw(seg, raw);
-    send(sockfd, raw, 7, 0);
+    sendto(sockfd, raw, 7, 0, address, sizeof(*address));
 }
  
 int main(int argc, char** argv) {
@@ -58,10 +62,10 @@ int main(int argc, char** argv) {
     int port = to_int(argv[4]);
 
     init_socket(port, &buffer_size, &sockfd);
-    printf("%d finish initializing socket\n", time());
+    printf("%d finish initializing socket\n", time(0));
     fflush(stdout);
 
-    if ((filed = open(filename, O_WRONLY)) < 0)
+    if ((filed = open(filename, O_WRONLY | O_CREAT)) < 0)
         die("Cannot open file");
     
     int last_acked = -1;
@@ -72,8 +76,10 @@ int main(int argc, char** argv) {
     while(1) {
         int len;
         char buff[256];
+        struct sockaddr_in sender_address;
+        int sender_address_size = sizeof(sender_address);
 
-        len = recv(sockfd, buff, 9, 0);
+        len = recvfrom(sockfd, buff, 9, 0, (struct sockaddr*) &sender_address, &sender_address_size);
         if (len < 0)
             die("Some error occured when reading buffer");
 
@@ -82,19 +88,22 @@ int main(int argc, char** argv) {
             segment seg;
             to_segment(buff, &seg);
 
-            printf("%d segment %d caught ", time(), seg.seq);
+            printf("%d segment %d caught ", time(0), seg.seq);
             hex(buff, 9);
             printf("\n");
             print_segment(seg);
             fflush(stdout);
 
+            int window_index = seg.seq - last_acked - 1;
+            printf("%d last_acked: %d, window_index: %d\n", time(0), last_acked, window_index);
+            fflush(stdout);
+
             // test checksum
-            int window_index = seg.seq - last_acked + 1;
             if (checksum_str(buff, 8) != seg.checksum) {
                 printf("%d checksum error: calculated %02x, expected %02x\n\r",
-                    time(), checksum_str(buff, 8) & 0xff, seg.checksum & 0xff);
-                send_ack_segment(sockfd, 0, seg.seq + 1, window_size);
-            } else if (seg.seq || (window_index >= 0 && window_index < window_size)) {
+                    time(0), checksum_str(buff, 8) & 0xff, seg.checksum & 0xff);
+                send_ack_segment(sockfd, (struct sockaddr*) &sender_address, 0, seg.seq + 1, window_size);
+            } else if (window_index >= 0 && window_index < window_size) {
                 if (seg.seq >= 0 && window_index >= 0 && window_index < window_size) {
                     acked_status[window_index] = 1;
                     acked_message[window_index] = seg.data;
@@ -107,9 +116,9 @@ int main(int argc, char** argv) {
                 
                 if (next_ack > 0) {
                     write(filed, acked_message, next_ack);
-                    send_ack_segment(sockfd, 1, last_acked + 1 + next_ack, window_size);
+                    send_ack_segment(sockfd, (struct sockaddr*) &sender_address, 1, last_acked + 1 + next_ack, window_size);
 
-                    printf("%d writing to file and sending ack %d\n", time(), last_acked + 1 + next_ack);
+                    printf("%d writing to file and sending ack %d\n", time(0), last_acked + 1 + next_ack);
                     fflush(stdout);
 
                     // slide windows with next_ack
@@ -117,17 +126,20 @@ int main(int argc, char** argv) {
                     shl_buffer(acked_status, window_size, next_ack);
                     last_acked += next_ack;
 
-                    printf("%d slide window to last_acked = %d\n", time(), last_acked);
+                    printf("%d slide window to last_acked = %d\n", time(0), last_acked);
                     fflush(stdout);
                 }
 
                 if (next_ack >= window_size && seg.seq < 0) {
-                    send_ack_segment(sockfd, 1, -1, window_size);
-                    printf("%d send ack of EOF\n", time());
+                    send_ack_segment(sockfd, (struct sockaddr*) &sender_address, 1, -1, window_size);
+                    printf("%d send ack of EOF\n", time(0));
                     fflush(stdout);
                     break;
                 }
             }
+        } else {
+            printf("%d not a valid segment\n", time(0));
+            fflush(stdout);
         }
     }
 
