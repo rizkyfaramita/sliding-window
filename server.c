@@ -116,6 +116,8 @@ int main(int argc, char** argv) {
     }
 
     free(acked_status);
+    free(acked_message);
+    close(filed);
     close(sockfd);
     return 0;
 }
