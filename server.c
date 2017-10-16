@@ -88,15 +88,19 @@ int main(int argc, char** argv) {
             int window_index = seg.seq - last_acked + 1;
             if (checksum_str(buff, 8) != seg.checksum) {
                 printf("Checksum error: calculated %02x, expected %02x\n\r",
-                    checksum_chr(seg.data) & 0xff, seg.checksum & 0xff);
+                    checksum_str(buff, 8) & 0xff, seg.checksum & 0xff);
                 send_ack_segment(sockfd, 0, seg.seq + 1, window_size);
-            } else if (window_index > 0 && window_index < window_size) {
-                acked_status[window_index] = 1;
+            } else if (seg.seq || (window_index >= 0 && window_index < window_size)) {
+                if (seg.seq >= 0 && window_index >= 0 && window_index < window_size) {
+                    acked_status[window_index] = 1;
+                    acked_message[window_index] = seg.data;
+                }
 
                 int next_ack = 0;
                 for (; next_ack < window_size; next_ack++)
                     if (!acked_status[next_ack])
                         break;
+                
                 if (next_ack > 0) {
                     write(filed, acked_message, next_ack);
                     send_ack_segment(sockfd, 1, last_acked + 1 + next_ack, window_size);
@@ -108,6 +112,11 @@ int main(int argc, char** argv) {
                         acked_status[i] = i + next_ack < window_size ? acked_message[i + next_ack] : 0;
                     }
                     last_acked += next_ack;
+                }
+
+                if (next_ack >= window_size && seg.seq < 0) {
+                    send_ack_segment(sockfd, 1, -1, window_size);
+                    break;
                 }
             }
 
