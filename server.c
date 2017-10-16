@@ -7,7 +7,7 @@
 #include "segment.h"
 #include "util.h"
 
-void init_socket(int port, int buffer_size, int *sockfd) {
+void init_socket(int port, int *buffer_size, int *sockfd) {
     // create a UDP socket
     if ((*sockfd=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
         die("Cannot creating socket instance");
@@ -56,10 +56,13 @@ int main(int argc, char** argv) {
     int buffer_size = to_int(argv[3]);
     int port = to_int(argv[4]);
 
-    init_socket(port, buffer_size, &sockfd);
+    init_socket(port, &buffer_size, &sockfd);
     printf("Finish initializing socket\n");
     fflush(stdout);
-
+    
+    int last_acked = -1;
+    char* acked_status = (char*) malloc(window_size * sizeof(char));
+    memset(acked_status, 0, window_size * sizeof(char));
     while(1) {
         int len;
         char buff[256];
@@ -76,18 +79,29 @@ int main(int argc, char** argv) {
             fflush(stdout);
 
             // test checksum
+            int window_index = seg.next_seq - last_acked + 1;
             if (checksum_chr(seg.data) != seg.checksum) {
                 printf("Checksum error: calculated %02x, expected %02x\n\r",
                     checksum_chr(seg.data) & 0xff, seg.checksum & 0xff);
                 send_ack_segment(sockfd, 0, seg.seq + 1, window_size);
-            } else {
+            } else if (window_index > 0 && window_index < window_size) {
+                acked_status[window_index] = 1;
 
+                int i = 0;
+                for (; i < window_size; i++)
+                    if (!acked_status[i])
+                        break;
+                if (i > 0) {
+                    send_ack_segment(sockfd, 1, last_acked + 1 + i, window_size);
+                    // slide windows
+                }
             }
 
             fflush(stdout);
         }
     }
 
+    free(acked_status);
     close(sockfd);
     return 0;
 }
