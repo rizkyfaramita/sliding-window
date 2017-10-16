@@ -113,11 +113,8 @@ int main(int argc, char** argv) {
                     fflush(stdout);
 
                     // slide windows with next_ack
-                    int i;
-                    for (i = 0; i < window_size; i++) {
-                        acked_message[i] = i + next_ack < window_size ? acked_message[i + next_ack] : 0;
-                        acked_status[i] = i + next_ack < window_size ? acked_message[i + next_ack] : 0;
-                    }
+                    shl_buffer(acked_message, window_size, next_ack);
+                    shl_buffer(acked_status, window_size, next_ack);
                     last_acked += next_ack;
 
                     printf("%d slide window to last_acked = %d\n", time(), last_acked);
@@ -138,6 +135,6 @@ int main(int argc, char** argv) {
     free(acked_message);
     close(filed);
     close(sockfd);
-    
+
     return 0;
 }

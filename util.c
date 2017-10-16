@@ -26,6 +26,11 @@ char checksum_str(char* x, int len) {
     return (char) n;
 }
 
+void shl_buffer(char* buffer, int len, int num) {
+    for (int i = 0; i < len; i++)
+        buffer[i] = i + num < len ? buffer[i+num] : 0;
+}
+
 void die(char *s) {
     perror(s);
     exit(1);

@@ -11,4 +11,6 @@ char checksum_chr(char x);
 
 char checksum_str(char* x, int len);
 
+void shl_buffer(char* buffer, int len, int num);
+
 #endif
