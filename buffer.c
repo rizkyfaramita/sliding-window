@@ -1,13 +1,12 @@
 #include <sys/socket.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "buffer.h"
 
-socket_buffer init_buffer(int sockfd, struct sockaddr* address, int size) {
+socket_buffer init_buffer(int size) {
     socket_buffer new_buffer;
-    new_buffer.sockfd = sockfd;
-    new_buffer.address = address;
     new_buffer.size = size;
     new_buffer.pos = 0;
     new_buffer.buffer = (char*) malloc(size * sizeof(char));
@@ -49,4 +48,80 @@ int recv_data(socket_buffer recv_buff, char* data, int len) {
         }
         pthread_mutex_unlock(&recv_buff.lock);
     }
+}
+
+struct __thread_buffer {
+    int sockfd;
+    socket_buffer buffer;
+};
+
+struct sockaddr __os_sender_address;
+int __os_sender_address_size;
+
+void *__send_buffer_to_os(void* param) {
+    int sockfd = ((struct __thread_buffer*) param)->sockfd;
+    socket_buffer buff = ((struct __thread_buffer*) param)->buffer;
+    free(param);
+
+    char* data = (char*) malloc(256);
+    memset(data, 0, 256);
+    int len = 0;
+    while (1) {
+        pthread_mutex_lock(&buff.lock);
+        while (buff.pos > 0) {
+            data[len++] = *buff.buffer;
+            int i = 0;
+            for (; i < buff.pos - 1; i++)
+                buff.buffer[i] = buff.buffer[i+1];
+            buff.pos--;
+        }
+        pthread_mutex_unlock(&buff.lock);
+        
+        sendto(sockfd, data, len, 0, &__os_sender_address, __os_sender_address_size);
+        usleep(rand() % 10000);
+    }
+    free(data);
+}
+
+void *__recv_buffer_from_os(void* param) {
+    int sockfd = ((struct __thread_buffer*) param)->sockfd;
+    socket_buffer buff = ((struct __thread_buffer*) param)->buffer;
+    free(param);
+
+    __os_sender_address_size = sizeof(__os_sender_address);
+
+    char* data = (char*) malloc(256);
+    memset(data, 0, 256);
+    while (1) {
+        int len = recvfrom(sockfd, data, 255, 0, &__os_sender_address, &__os_sender_address_size);
+
+        int i = 0;
+        while (len > 0) {
+            pthread_mutex_lock(&buff.lock);
+            if (buff.pos < buff.size) {
+                buff.buffer[buff.pos++] = data[i++];
+                len--;
+            }
+            pthread_mutex_unlock(&buff.lock);
+        }
+
+        usleep(rand() % 10000);
+    }
+    free(data);
+}
+
+void create_send_recv_buffer(int sockfd, pthread_t *send_buff_thread, socket_buffer send_buff,
+                             pthread_t *recv_buff_thread, socket_buffer recv_buff) {
+    pthread_t send_tid, recv_tid;
+
+    struct __thread_buffer* param = (struct __thread_buffer*) malloc(sizeof(struct __thread_buffer));
+    
+    pthread_create(&send_tid, NULL, &__send_buffer_to_os, (void*) param);
+    pthread_create(&recv_tid, NULL, &__recv_buffer_from_os, (void*) param);
+    
+    if (send_buff_thread != 0)
+        *send_buff_thread = send_tid;
+
+    if (recv_buff_thread != 0)
+        *recv_buff_thread = recv_tid;
 }
