@@ -19,10 +19,14 @@ void free_buffer(socket_buffer buffer) {
     pthread_mutex_destroy(&buffer.lock);
 }
 
-int send_data(socket_buffer send_buff, char* data, int len) {
+int send_data(socket_buffer send_buff, char* data, int len, char block) {
     int sent = 0;
     while (len) {
         pthread_mutex_lock(&send_buff.lock);
+        if (!block && send_buff.size - send_buff.pos < len) {
+            pthread_mutex_unlock(&send_buff.lock);
+            return 0;
+        }
         while (len > 0 && send_buff.pos < send_buff.size) {
             send_buff.buffer[send_buff.pos++] = *(data++);
             len--;
@@ -35,11 +39,17 @@ int send_data(socket_buffer send_buff, char* data, int len) {
     return sent;
 }
 
-int recv_data(socket_buffer recv_buff, char* data, int len) {
+int recv_data(socket_buffer recv_buff, char* data, int len, char block) {
+    int read = 0;
     while (len) {
         pthread_mutex_lock(&recv_buff.lock);
+        if (!block && len > recv_buff.pos) {
+            pthread_mutex_unlock(&recv_buff.lock);
+            return 0;
+        }
         while (len > 0 && recv_buff.pos > 0) {
             *(data++) = *recv_buff.buffer;
+            read++;
             int i = 0;
             for (; i < recv_buff.pos - 1; i++)
                 recv_buff.buffer[i] = recv_buff.buffer[i+1];
@@ -48,6 +58,7 @@ int recv_data(socket_buffer recv_buff, char* data, int len) {
         }
         pthread_mutex_unlock(&recv_buff.lock);
     }
+    return read;
 }
 
 struct __thread_buffer {

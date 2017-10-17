@@ -15,9 +15,9 @@ socket_buffer init_buffer(int size);
 
 void free_buffer(socket_buffer buffer);
 
-int send_data(socket_buffer send_buff, char* data, int len);
+int send_data(socket_buffer send_buff, char* data, int len, char block);
 
-int recv_data(socket_buffer recv_buff, char* data, int len);
+int recv_data(socket_buffer recv_buff, char* data, int len, char block);
 
 void create_send_recv_buffer(int sockfd, pthread_t *send_buff_thread, socket_buffer send_buff,
                              pthread_t *recv_buff_thread, socket_buffer recv_buff);
