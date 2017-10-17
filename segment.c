@@ -30,7 +30,7 @@ int ack_segment_to_raw(ack_segment seg, char* buffer) {
 
 void to_segment(char* raw, segment* seg) {
     seg->soh = *raw;
-    seg->seq = ((int) *(raw+1)) | ((int) *(raw+2))<<8 | ((int) *(raw+3))<<16 | ((int) *(raw+4))<<24;
+    seg->seq = ((int) *(raw+1) & 0xff) | ((int) *(raw+2) & 0xff)<<8 | ((int) *(raw+3) & 0xff)<<16 | ((int) *(raw+4) & 0xff)<<24;
     seg->stx = *(raw + 5);
     seg->data = *(raw + 6);
     seg->etx = *(raw + 7);
@@ -39,7 +39,7 @@ void to_segment(char* raw, segment* seg) {
 
 void to_ack_segment(char* raw, ack_segment* seg) {
     seg->ack = *raw;
-    seg->next_seq = ((int) *(raw+1)) | ((int) *(raw+2))<<8 | ((int) *(raw+3))<<16 | ((int) *(raw+4))<<24;
+    seg->next_seq = ((int) *(raw+1) & 0xff) | ((int) *(raw+2) & 0xff)<<8 | ((int) *(raw+3) & 0xff)<<16 | ((int) *(raw+4) & 0xff)<<24;
     seg->window_size = *(raw + 5);
     seg->checksum = *(raw + 6);
 }

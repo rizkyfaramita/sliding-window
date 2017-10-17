@@ -52,7 +52,7 @@ int readfd(int fd) {
     if (ret == 0)
         return EOF;
     else
-        return (int) buff[0];
+        return ((int) buff[0]) & 0xff;
 }
  
 int main(int argc, char** argv) {
@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
 
         len = recv(sockfd, buff, 7, 0);
         if (len > 0)
-            printf("%d %d\n", time(0), len), hex(buff, len);
+            printf("%d %d\n", time(0), len), hex(buff, len), printf("\n");
         if (len == 7) {
             ack_segment seg;
             to_ack_segment(buff, &seg);
